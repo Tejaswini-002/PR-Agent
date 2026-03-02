@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Merged Pull Requests</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>Merged At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in items %}
+        <tr>
+          <td>{{ pr.number or pr.pull_number }}</td>
+          <td><a href="{{ pr.html_url }}" target="_blank">{{ pr.title }}</a></td>
+          <td>{{ pr.user.login if pr.user else '' }}</td>
+          <td>{{ pr.merged_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Commits</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>SHA</th>
+          <th>Message</th>
+          <th>Author</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for commit in items %}
+        <tr>
+          <td>{{ commit.sha[:7] if commit.sha else '' }}</td>
+          <td>{{ commit.commit.message if commit.commit else '' }}</td>
+          <td>{{ commit.commit.author.name if commit.commit and commit.commit.author else '' }}</td>
+          <td>{{ commit.commit.author.date if commit.commit and commit.commit.author else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

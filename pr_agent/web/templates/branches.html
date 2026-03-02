@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Branches</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Commit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for branch in items %}
+        <tr>
+          <td>{{ branch.name }}</td>
+          <td>{{ branch.commit.sha[:7] if branch.commit else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Workflows</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>State</th>
+          <th>Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wf in items %}
+        <tr>
+          <td>{{ wf.id }}</td>
+          <td>{{ wf.name }}</td>
+          <td>{{ wf.state }}</td>
+          <td>{{ wf.path }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+      <p class="hint">Enable the actions toolset in your MCP gateway to view workflows.</p>
+    {% endif %}
+  </section>
+{% endblock %}

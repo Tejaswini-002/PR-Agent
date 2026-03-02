@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% block content %}
+  {% if errors and errors|length > 0 %}
+    <section class="card error-card">
+      <h2>Service Warnings</h2>
+      <ul>
+        {% for error in errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+      <p class="hint">For workflows, enable the actions toolset in your MCP gateway.</p>
+    </section>
+  {% endif %}
+
+  <section class="hero">
+    <div>
+      <h2>Repository Intelligence</h2>
+      <p>All data is fetched via MCP and redacted for secrets. Use filters to quickly scan items.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#pr-detail">Summarize a PR</a>
+        <a class="button" href="#prs">Browse PRs</a>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <div class="stat"><span>PRs</span><strong>{{ prs|length }}</strong></div>
+      <div class="stat"><span>Issues</span><strong>{{ issues|length }}</strong></div>
+      <div class="stat"><span>Commits</span><strong>{{ commits|length }}</strong></div>
+      <div class="stat"><span>Branches</span><strong>{{ branches|length }}</strong></div>
+    </div>
+  </section>
+<section id="pr-detail" class="card">
+    <div class="section-header">
+      <h3>PR Detail & Summary</h3>
+      <form id="summarize-form" class="inline-form" method="get">
+        <input class="filter" name="pr_detail" placeholder="PR #" />
+        <input type="hidden" name="summarize" value="1" />
+        <label class="checkbox">
+          <input type="checkbox" name="incremental" value="1" {% if incremental %}checked{% endif %} />
+          Incremental
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="force_refresh" value="1" {% if force_refresh %}checked{% endif %} />
+          Force refresh
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" name="skip_simple" value="1" {% if skip_simple %}checked{% endif %} />
+          Skip simple
+        </label>
+        <button id="summarize-btn" class="button primary" type="submit">Summarize</button>
+      </form>
+    </div>
+    <div id="summarize-status" class="status hidden">
+      <div class="spinner"></div>
+      <div>
+        <strong>Summarizing…</strong>
+        <div class="progress">
+          <div class="bar"></div>
+        </div>
+        <div class="hint">Processing the PR diff with Foundry Local</div>
+      </div>
+    </div>
+    <h4>All Pull Requests</h4>
+    <div class="pr-list">
+      {% for pr in all_prs %}
+        <details class="pr-item" data-pr-number="{{ pr.number or pr.pull_number }}">
+          <summary>
+            <strong>#{{ pr.number or pr.pull_number }}</strong>
+            <span class="pr-title">{{ pr.title }}</span>
+            <span class="pr-state">{{ pr.state }}</span>
+            <span class="pr-actions">
+              <label class="checkbox-inline" title="Bypass cache and recompute summary">
+                <input type="checkbox" data-force-refresh /> Force refresh
+              </label>
+              <button class="mini-btn summary-btn" type="button" data-status="idle">
+                <span class="summary-btn-spinner"></span>
+                <span class="summary-btn-text">Summary</span>
+              </button>
+              <button class="mini-btn retry-btn" type="button">Retry</button>
+            </span>
+          </summary>
+          <div class="pr-meta">
+            <p><strong>Author:</strong> {{ pr.user.login if pr.user else '' }}</p>
+            <p><strong>Updated:</strong> {{ pr.updated_at }}</p>
+            {% if pr.head and pr.base %}
+              <p><strong>Branches:</strong> {{ pr.head.ref }} → {{ pr.base.ref }}</p>
+            {% endif %}
+            <p><a href="{{ pr.html_url }}" target="_blank">Open on GitHub</a></p>
+          </div>
+          <div class="pr-summary-block">
+            <h4>PR Summary</h4>
+            <div class="pr-summary-text">
+              {% if not pr.file_summaries and not pr.high_level_summary %}
+                <span class="hint">No summary yet. Click <strong>Summary</strong> above to generate.</span>
+              {% else %}
+                <h5>High-Level Summary</h5>
+                <p class="high-level-summary">{{ pr.high_level_summary or 'No summary available.' }}</p>
+                {% if pr.file_summaries and pr.file_summaries|length > 0 %}
+                <table class="pr-file-table high-level-table">
+                  <thead><tr><th>File</th><th>Summary</th></tr></thead>
+                  <tbody>
+                    {% for fs in pr.file_summaries %}
+                    <tr>
+                      <td><span class="file-chip">{{ fs.get('file') or fs.get('file_path') or fs.get('path') or 'unknown' }}</span></td>
+                      <td class="file-summary-cell">{{ fs.get('summary') or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                <span class="hint">No changed files detected. Click <strong>Summary</strong> to analyze.</span>
+                {% endif %}
+              {% endif %}
+            </div>
+            <div class="pr-meta-details">
+              <p><strong>Author:</strong> {{ pr.user.login if pr.user else '' }}</p>
+              <p><strong>Updated:</strong> {{ pr.updated_at }}</p>
+              {% if pr.head and pr.base %}
+                <p><strong>Branches:</strong> {{ pr.head.ref }} → {{ pr.base.ref }}</p>
+              {% endif %}
+              <p><a href="{{ pr.html_url }}" target="_blank">Open on GitHub</a></p>
+            </div>
+          </div>
+        </details>
+      {% endfor %}
+      {% if all_prs|length == 0 %}
+        <p class="hint">No PRs available.</p>
+      {% endif %}
+    </div>
+    <p class="hint">Summary limits files and chunk size for a good balance of speed and coverage.</p>
+    {% if show_summary %}
+      <p><strong>PR #{{ pr_detail.number }}</strong> — {{ pr_detail.title }}</p>
+      <p><strong>Author:</strong> {{ pr_detail.user.login if pr_detail.user else '' }}</p>
+      <p><strong>Updated:</strong> {{ pr_detail.updated_at }}</p>
+      <p><a href="{{ pr_detail.html_url }}" target="_blank">Open on GitHub</a></p>
+
+      <h4>High-Level Summary</h4>
+      <p class="high-level-summary">{{ high_level_summary or 'No summary available.' }}</p>
+
+      {% set fs_list = pr_summary.get('file_summaries') or file_summaries or [] %}
+      {% if fs_list %}
+      <h4>Changed Files</h4>
+      <table class="pr-file-table high-level-table">
+        <thead>
+          <tr><th>File</th><th>Summary</th></tr>
+        </thead>
+        <tbody>
+          {% for fs in fs_list %}
+          <tr>
+            <td><span class="file-chip">{{ fs.get('file') or fs.get('file_path') or fs.get('path') or 'unknown' }}</span></td>
+            <td class="file-summary-cell">{{ fs.get('summary') or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <div class="grid">
+        <div>
+          <h4>Risks</h4>
+          <ul>
+            {% for risk in pr_summary.risks or [] %}
+              <li><strong>{{ risk.severity }}</strong>: {{ risk.description }}</li>
+            {% endfor %}
+          </ul>
+          {% if (pr_summary.risks or [])|length == 0 %}
+            <p class="hint">None</p>
+          {% endif %}
+        </div>
+        <div>
+          <h4>Tests</h4>
+          <p>{{ pr_summary.tests or 'Not mentioned.' }}</p>
+        </div>
+      </div>
+
+    {% else %}
+      <p class="hint">Enter a PR number and click Summarize to load details.</p>
+    {% endif %}
+    {% if pr_detail and pr_detail.number %}
+      <div class="card nested">
+        <h4>Chat with Bot</h4>
+        <form class="inline-form" method="get">
+          <input type="hidden" name="pr_detail" value="{{ pr_detail.number }}" />
+          <input type="hidden" name="summarize" value="{{ summarize }}" />
+          <input type="hidden" name="fast" value="{{ fast }}" />
+          {% if incremental %}
+            <input type="hidden" name="incremental" value="1" />
+          {% endif %}
+          {% if skip_simple %}
+            <input type="hidden" name="skip_simple" value="1" />
+          {% endif %}
+          <input class="filter" name="chat" placeholder="Ask about this PR" value="{{ chat_question }}" />
+          <button class="button" type="submit">Ask</button>
+        </form>
+        {% if chat_answer %}
+          <div class="chat-response">{{ chat_answer }}</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section id="prs" class="card">
+    <div class="section-header">
+      <h3>Pull Requests ({{ state }})</h3>
+      <input class="filter" data-filter="#prs-table" placeholder="Filter PRs" />
+    </div>
+    <table id="prs-table" class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>State</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in prs %}
+        <tr>
+          <td>{{ pr.number or pr.pull_number }}</td>
+          <td><a href="{{ pr.html_url }}" target="_blank">{{ pr.title }}</a></td>
+          <td>{{ pr.user.login if pr.user else '' }}</td>
+          <td>{{ pr.state }}</td>
+          <td>{{ pr.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="issues" class="card">
+    <div class="section-header">
+      <h3>Issues ({{ state }})</h3>
+      <input class="filter" data-filter="#issues-table" placeholder="Filter issues" />
+    </div>
+    <table id="issues-table" class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>State</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for issue in issues %}
+        <tr>
+          <td>{{ issue.number }}</td>
+          <td><a href="{{ issue.html_url }}" target="_blank">{{ issue.title }}</a></td>
+          <td>{{ issue.user.login if issue.user else '' }}</td>
+          <td>{{ issue.state }}</td>
+          <td>{{ issue.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="commits" class="card">
+    <div class="section-header">
+      <h3>Commits</h3>
+      <input class="filter" data-filter="#commits-table" placeholder="Filter commits" />
+    </div>
+    <table id="commits-table" class="table">
+      <thead>
+        <tr>
+          <th>SHA</th>
+          <th>Message</th>
+          <th>Author</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for commit in commits %}
+        <tr>
+          <td>{{ commit.sha[:7] if commit.sha else '' }}</td>
+          <td>{{ commit.commit.message if commit.commit else '' }}</td>
+          <td>{{ commit.commit.author.name if commit.commit and commit.commit.author else '' }}</td>
+          <td>{{ commit.commit.author.date if commit.commit and commit.commit.author else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="branches" class="card">
+    <div class="section-header">
+      <h3>Branches</h3>
+      <input class="filter" data-filter="#branches-table" placeholder="Filter branches" />
+    </div>
+    <table id="branches-table" class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Commit (short)</th>
+          <th>Full SHA</th>
+          <th>Protected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for branch in branches %}
+        <tr>
+          <td>{{ branch.name }}</td>
+          <td>{{ (branch.commit.sha or branch.sha or '')[:7] }}</td>
+          <td><code class="sha">{{ branch.sha or (branch.commit.sha if branch.commit else '') }}</code></td>
+          <td>{{ 'Yes' if branch.protected else 'No' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not branches %}
+    <p class="hint">No branches listed. Run the GitHub MCP server with <code>--toolsets=all</code> or <code>--toolsets=repos</code> (e.g. <code>docker run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server stdio --toolsets=all</code>).</p>
+    {% endif %}
+  </section>
+
+  <section id="comments" class="card">
+    <div class="section-header">
+      <h3>Comments {{ '(' ~ comments_kind ~ ')' if comments_kind else '' }}</h3>
+    </div>
+    <p class="hint">Use query params: ?pr=123 or ?issue=456</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Body</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for comment in comments %}
+        <tr>
+          <td>{{ comment.user.login if comment.user else '' }}</td>
+          <td class="wrap">{{ comment.body }}</td>
+          <td>{{ comment.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="merges" class="card">
+    <div class="section-header">
+      <h3>Merged Pull Requests</h3>
+      <input class="filter" data-filter="#merges-table" placeholder="Filter merges" />
+    </div>
+    <table id="merges-table" class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>Merged At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in merges %}
+        <tr>
+          <td>{{ pr.number or pr.pull_number }}</td>
+          <td><a href="{{ pr.html_url }}" target="_blank">{{ pr.title }}</a></td>
+          <td>{{ pr.user.login if pr.user else '' }}</td>
+          <td>{{ pr.merged_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="workflows" class="card">
+    <div class="section-header">
+      <h3>Workflows</h3>
+      <input class="filter" data-filter="#workflows-table" placeholder="Filter workflows" />
+    </div>
+    <table id="workflows-table" class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>State</th>
+          <th>Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wf in workflows %}
+        <tr>
+          <td>{{ wf.id }}</td>
+          <td>{{ wf.name }}</td>
+          <td>{{ wf.state }}</td>
+          <td>{{ wf.path }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endblock %}

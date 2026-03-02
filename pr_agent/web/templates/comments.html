@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Comments {{ '(' ~ kind ~ ')' if kind else '' }}</h2>
+    <p class="hint">Provide query params: ?pr=123 or ?issue=456</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Body</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for comment in items %}
+        <tr>
+          <td>{{ comment.user.login if comment.user else '' }}</td>
+          <td class="wrap">{{ comment.body }}</td>
+          <td>{{ comment.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

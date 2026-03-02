@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neuqa-pr-agent"
+version = "0.1.0"
+description = "NEUQA AI PR Reviewer Agent (Python)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "NEUQA" }]
+dependencies = [
+  "httpx>=0.27.0",
+  "tenacity>=8.0.0",
+  "python-dotenv>=1.0.1",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "jinja2>=3.1.4",
+  "openai>=1.40.0"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+postgres = ["psycopg[binary]>=3.1.0"]
+
+[project.scripts]
+neuqa-pr-agent = "pr_agent.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pr_agent*"]

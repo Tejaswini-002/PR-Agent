@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Pull Requests ({{ state }})</h2>
+    <div class="filters">
+      <a href="/prs?state=open">Open</a>
+      <a href="/prs?state=closed">Closed</a>
+      <a href="/prs?state=all">All</a>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>State</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in items %}
+        <tr>
+          <td>{{ pr.number or pr.pull_number }}</td>
+          <td>
+            <a href="/prs/{{ pr.number or pr.pull_number }}">{{ pr.title }}</a>
+            <span class="muted">·</span>
+            <a href="{{ pr.html_url }}" target="_blank">GitHub</a>
+          </td>
+          <td>{{ pr.user.login if pr.user else '' }}</td>
+          <td>{{ pr.state }}</td>
+          <td>{{ pr.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

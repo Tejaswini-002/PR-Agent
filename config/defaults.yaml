@@ -1,0 +1,23 @@
+# Non-secret default configuration for NEUQA PR Agent
+# Environment variables override these values. Do not put secrets here.
+# See docs/CONFIGURATION.md for full reference.
+
+# Logging
+log_level: info
+
+# Review behavior
+review:
+  incremental: false
+  skip_simple: false
+  simple_max_lines: 40
+  max_concurrency: 6
+  max_files: null   # no limit if null
+
+# State (file path when using file backend)
+state_path: .neuqa_state.json
+
+# Polling (when not using webhooks)
+poll_interval_seconds: 60
+
+# Prompt customization (optional instruction suffix)
+prompt_extra: null

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>Issues ({{ state }})</h2>
+    <div class="filters">
+      <a href="/issues?state=open">Open</a>
+      <a href="/issues?state=closed">Closed</a>
+      <a href="/issues?state=all">All</a>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Title</th>
+          <th>Author</th>
+          <th>State</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for issue in items %}
+        <tr>
+          <td>{{ issue.number }}</td>
+          <td><a href="{{ issue.html_url }}" target="_blank">{{ issue.title }}</a></td>
+          <td>{{ issue.user.login if issue.user else '' }}</td>
+          <td>{{ issue.state }}</td>
+          <td>{{ issue.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

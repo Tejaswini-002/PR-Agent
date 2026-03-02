@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h2>PR #{{ pr.number }}</h2>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+    <p><strong>Title:</strong> {{ pr.title }}</p>
+    <p><strong>State:</strong> {{ pr.state }}</p>
+    <p><strong>Author:</strong> {{ pr.user.login if pr.user else '' }}</p>
+    <p><strong>Updated:</strong> {{ pr.updated_at }}</p>
+    <p><a href="{{ pr.html_url }}" target="_blank">Open on GitHub</a></p>
+  </section>
+
+  <section class="card">
+    <h3>Summary</h3>
+    {% if summary.summary %}
+      <ul>
+        {% for item in summary.summary %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+      <p><strong>Intent:</strong> {{ summary.intent }}</p>
+      <p><strong>Tests:</strong> {{ summary.tests }}</p>
+      <p><strong>Release Notes:</strong></p>
+      <ul>
+        {% for item in summary.release_notes or [] %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+      <p><strong>Risks:</strong></p>
+      <ul>
+        {% for risk in summary.risks or [] %}
+          <li><strong>{{ risk.severity }}</strong>: {{ risk.description }}</li>
+        {% endfor %}
+      </ul>
+      <p><strong>Action Items:</strong></p>
+      <ul>
+        {% for item in summary.action_items or [] %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">No summary available. Add ?summarize=1 to regenerate.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Changed Files</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Changes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in files %}
+        <tr>
+          <td>{{ file.filename or file.path }}</td>
+          <td class="wrap">{{ file.patch }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

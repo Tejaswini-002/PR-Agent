@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Repo Monitoring</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/scripts.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <h1>Repo Monitoring</h1>
+            <p class="subtitle">Single‑page overview via MCP</p>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button" href="#prs">PRs</a>
+          <a class="button" href="#issues">Issues</a>
+          <a class="button" href="#commits">Commits</a>
+          <a class="button" href="#branches">Branches</a>
+          <a class="button" href="#comments">Comments</a>
+          <a class="button" href="#merges">Merges</a>
+          <a class="button" href="#workflows">Workflows</a>
+          <a class="button" href="#pr-detail">PR Detail</a>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+    <script>
+      const filters = document.querySelectorAll('[data-filter]');
+      filters.forEach((input) => {
+        input.addEventListener('input', (e) => {
+          const target = e.target.getAttribute('data-filter');
+          const value = e.target.value.toLowerCase();
+          document.querySelectorAll(target + ' tbody tr').forEach((row) => {
+            row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+          });
+        });
+      });
+
+      const summarizeForm = document.getElementById('summarize-form');
+      const summarizeStatus = document.getElementById('summarize-status');
+      const summarizeBtn = document.getElementById('summarize-btn');
+      if (summarizeForm) {
+        summarizeForm.addEventListener('submit', () => {
+          if (summarizeStatus) summarizeStatus.classList.remove('hidden');
+          if (summarizeBtn) summarizeBtn.disabled = true;
+        });
+      }
+
+      document.querySelectorAll('.pr-item').forEach((item) => {
+        const analyzeBtn = item.querySelector('.summary-btn');
+        const summaryBtnText = item.querySelector('.summary-btn-text');
+        const retryBtn = item.querySelector('.retry-btn');
+        const prNumber = item.getAttribute('data-pr-number') || item.querySelector('strong')?.textContent?.replace('#', '') || '';
+
+        const setStatus = (state) => {
+          if (analyzeBtn) analyzeBtn.setAttribute('data-status', state);
+          if (summaryBtnText) {
+            if (state === 'running') summaryBtnText.textContent = 'Analyzing…';
+            else if (state === 'completed') summaryBtnText.textContent = 'Complete';
+            else summaryBtnText.textContent = 'Summary';
+          }
+        };
+
+        const showSummaryLoading = (summaryText) => {
+          if (!summaryText) return;
+          summaryText.innerHTML = '<div class="loading-summary"><span class="spinner"></span><span>Analyzing PR…</span></div>';
+        };
+
+        const loadSummary = async () => {
+          if (!prNumber) return;
+          const summaryBlock = item.querySelector('.pr-summary-block');
+          const summaryText = summaryBlock?.querySelector('.pr-summary-text');
+          setStatus('running');
+          if (analyzeBtn) analyzeBtn.disabled = true;
+          showSummaryLoading(summaryText);
+          try {
+            const forceRefresh = item.querySelector('[data-force-refresh]')?.checked ? '1' : '0';
+            const response = await fetch(`/api/pr-summary/${prNumber}?fast=1&force_refresh=${forceRefresh}`);
+            const data = await response.json();
+            if (summaryBlock) {
+              if (summaryText) {
+                const esc = (s) => (s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
+                function stripCodeFences(t) {
+                  const s = String(t).trim();
+                  if (s.startsWith('```') && s.endsWith('```')) {
+                    const lines = s.split('\n');
+                    if (lines.length >= 3) return lines.slice(1, -1).join('\n').trim();
+                    return s.replace(/^`*|`*$/g, '');
+                  }
+                  return s;
+                }
+                function toDisplayText(raw) {
+                  const s = stripCodeFences(String(raw).trim());
+                  if (!s) return '';
+                  if (s.startsWith('{')) {
+                    try {
+                      const obj = JSON.parse(s);
+                      if (obj && Array.isArray(obj.summary) && obj.summary.length > 0) return obj.summary[0];
+                      if (obj && typeof obj.what_changed === 'string' && obj.what_changed.trim()) return obj.what_changed.trim();
+                    } catch (e) {}
+                  }
+                  return s;
+                }
+                let html = '';
+                if (data.error) {
+                  html += '<p class="hint error-msg" style="color:#c00;">Summary error: ' + esc(data.error) + '</p>';
+                }
+                html += '<h5>High-Level Summary</h5>';
+                html += '<p class="high-level-summary">' + esc(data.high_level_summary || 'No summary available.') + '</p>';
+                const fileSummaries = data.file_summaries || [];
+                if (fileSummaries.length === 0) {
+                  html += '<span class="hint">No changed files detected in this PR.</span>';
+                } else {
+                  html += '<table class="pr-file-table high-level-table"><thead><tr><th>File</th><th>Summary</th></tr></thead><tbody>';
+                  fileSummaries.forEach(fs => {
+                    const path = esc(fs.file || fs.file_path || fs.path || 'unknown');
+                    const summary = esc((fs.summary || '—').toString().trim());
+                    html += '<tr><td><span class="file-chip">' + path + '</span></td><td class="file-summary-cell">' + summary + '</td></tr>';
+                  });
+                  html += '</tbody></table>';
+                }
+                summaryText.innerHTML = html;
+              }
+            }
+            setStatus('completed');
+          } catch (error) {
+            console.error(error);
+            setStatus('idle');
+            if (summaryText) {
+              summaryText.innerHTML = '<p class="hint error-msg" style="color:#c00;">Failed to load summary. Click Summary to retry.</p>';
+            }
+          } finally {
+            if (analyzeBtn) analyzeBtn.disabled = false;
+          }
+        };
+
+        if (analyzeBtn) {
+          analyzeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadSummary();
+          });
+        }
+
+        if (retryBtn) {
+          retryBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadSummary();
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
