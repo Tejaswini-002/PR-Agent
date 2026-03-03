@@ -1,4 +1,4 @@
-# NEUQA AI PR Reviewer Agent (Python)
+# AI PR Reviewer Agent (Python)
 
 Python-based GitHub Pull Request reviewer using **GitHub MCP Server** for GitHub access and **Foundry Local** (or any OpenAI-compatible API) for summarization. Structure and documentation follow patterns inspired by the [Fullstack Solution Template for AgentCore (FAST)](https://github.com/awslabs/fullstack-solution-template-for-agentcore). The solution runs on Azure.
 
