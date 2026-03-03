@@ -27,3 +27,4 @@ venv/
 
 # Third-party (use Docker image ghcr.io/github/github-mcp-server instead)
 github-mcp-server/
+.env
